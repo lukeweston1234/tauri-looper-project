@@ -60,7 +60,7 @@ fn play_clips(state: tauri::State<'_, Arc<Mutex<App>>>) -> Result<(), String>{
 
 #[tauri::command]
 fn record_clip(state: tauri::State<'_, Arc<Mutex<App>>>) -> Result<Vec<f32>, String>{
-    let clip = AudioClip::record().map_err(|err| err.to_string())?;
+    let clip = AudioClip::record_with_preview().map_err(|err| err.to_string())?;
     let app = state.lock().map_err(|err| err.to_string())?;
     let downsampled = clip.downsample(192);
     app.add_clip(Arc::new(clip));
