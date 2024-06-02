@@ -1,0 +1,39 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    @apply text-appPrimary;
+  } 
+}
+
+@font-face {
+  font-family: 'IngramMono';
+  src: url("./assets/fonts/ingram-mono-regular.ttf");
+  font-style: normal;
+  font-weight: 400;
+}
+
+
+#root {
+  width: 100%;
+  height: 100%;
+}
+
+
+body {
+  margin: 0px;
+  padding: 0px;
+  height: 100vh;
+  width: 100vw;
+  * {
+    font-family: 'IngramMono';
+  }
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
+}
+

@@ -1,6 +1,6 @@
 import { createSignal } from "solid-js";
 import { invoke } from "@tauri-apps/api/tauri";
-import "./App.css";
+import Header from "./shared/ui/Header";
 
 function App() {
   const [isRecording, setIsRecording] = createSignal(false);
@@ -16,10 +16,9 @@ function App() {
   }
 
   return (
-    <div class="padding-6 flex items-center justify-center gap-3">
-      <button onClick={playClips}>Play</button>
-      <button onClick={record}>Record</button>
-      {isRecording() && <span>Recording!!</span>}
+    <div class="flex h-full w-full flex-col bg-black">
+      <Header />
+      <button class="text-appPrimary">Test</button>
     </div>
   );
 }
