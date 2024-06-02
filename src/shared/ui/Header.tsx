@@ -1,4 +1,10 @@
-export default function Header() {
+import { Accessor } from "solid-js";
+
+export default function Header(props: {
+  isRecording: Accessor<boolean>;
+  onRecord: () => void;
+  onPlay: () => void;
+}) {
   return (
     <div class="flex h-[74px] w-full items-center gap-6 bg-black px-6">
       <svg
@@ -23,6 +29,41 @@ export default function Header() {
         <span class="text-[10px]">MEM 32%</span>
         <span class="text-[10px]">CPU 24%</span>
         <span class="text-[10px]">TEMP 54°C</span>
+      </div>
+      <div class="flex gap-6">
+        <button onClick={() => props.onPlay()}>
+          <svg
+            width="15"
+            height="15"
+            viewBox="0 0 15 15"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M3.24182 2.32181C3.3919 2.23132 3.5784 2.22601 3.73338 2.30781L12.7334 7.05781C12.8974 7.14436 13 7.31457 13 7.5C13 7.68543 12.8974 7.85564 12.7334 7.94219L3.73338 12.6922C3.5784 12.774 3.3919 12.7687 3.24182 12.6782C3.09175 12.5877 3 12.4252 3 12.25V2.75C3 2.57476 3.09175 2.4123 3.24182 2.32181ZM4 3.57925V11.4207L11.4288 7.5L4 3.57925Z"
+              fill="currentColor"
+              fill-rule="evenodd"
+              clip-rule="evenodd"
+            />
+          </svg>
+        </button>
+        <button onClick={() => props.onRecord()}>
+          <svg
+            width="15"
+            height="15"
+            viewBox="0 0 15 15"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            class={props.isRecording() ? "fill-appPrimary" : ""}
+          >
+            <path
+              d="M0.877075 7.49991C0.877075 3.84222 3.84222 0.877075 7.49991 0.877075C11.1576 0.877075 14.1227 3.84222 14.1227 7.49991C14.1227 11.1576 11.1576 14.1227 7.49991 14.1227C3.84222 14.1227 0.877075 11.1576 0.877075 7.49991ZM7.49991 1.82708C4.36689 1.82708 1.82708 4.36689 1.82708 7.49991C1.82708 10.6329 4.36689 13.1727 7.49991 13.1727C10.6329 13.1727 13.1727 10.6329 13.1727 7.49991C13.1727 4.36689 10.6329 1.82708 7.49991 1.82708Z"
+              fill="currentColor"
+              fill-rule="evenodd"
+              clip-rule="evenodd"
+            />
+          </svg>
+        </button>
       </div>
       <div class="ml-auto flex gap-1">
         <svg

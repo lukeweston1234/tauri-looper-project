@@ -1,7 +1,6 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-
 mod audio;
 
 use audio::AudioClip;
@@ -11,10 +10,6 @@ use std::sync::{Mutex, Arc};
 pub struct App {
     bpm: i32,
     audio_clips: Mutex<Vec<Arc<AudioClip>>>
-}
-
-pub struct RecordResponse {
-    downsampled_audio: Vec<f32> // This is used for rendering a low res vector on the front end
 }
 
 impl App {
