@@ -26,7 +26,7 @@ function App() {
       <div class="flex flex-col items-center justify-center">
         <div class="flex gap-3" />
       </div>
-      <div class="flex-1 pl-12">
+      <div class="flex-1 pl-12 pt-12">
         <Show when={clips().length}>
           <AudioClips clips={clips} />
         </Show>

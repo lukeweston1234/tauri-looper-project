@@ -65,10 +65,10 @@ export default function Header(props: {
           </svg>
         </button>
       </div>
-      <div class="ml-auto flex gap-1">
+      <div class="ml-auto flex items-center gap-1">
         <svg
-          width="20"
-          height="22"
+          width="16"
+          height="16"
           viewBox="0 0 20 22"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
@@ -79,7 +79,7 @@ export default function Header(props: {
             stroke-width="2"
           />
         </svg>
-        <span>120</span>
+        <span class="text-sm">120</span>
       </div>
     </div>
   );

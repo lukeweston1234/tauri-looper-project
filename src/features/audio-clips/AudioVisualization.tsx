@@ -17,7 +17,7 @@ export default function AudioVisualization(props: {
     props.downsampledData.map((x) => (Math.abs(x) / maxAmplitude()) * 100);
 
   return (
-    <div class="flex h-32 w-full items-center justify-between p-3">
+    <div class="flex h-[64px] w-full items-center justify-between p-3">
       <For each={normalizedData()}>
         {(chunk) => (
           <div class="w-[1px] bg-appPrimary" style={{ height: `${chunk}%` }} />
