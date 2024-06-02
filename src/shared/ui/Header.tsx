@@ -1,6 +1,6 @@
 export default function Header() {
   return (
-    <div class="flex h-[74px] w-full items-center gap-x-6 bg-black p-6">
+    <div class="flex h-[74px] w-full items-center gap-6 bg-black px-6">
       <svg
         width="60"
         height="40"

@@ -1,16 +1,16 @@
 import { defineConfig } from "vite";
 import solid from "vite-plugin-solid";
-import tailwindcss from 'tailwindcss';
-import autoprefixer from 'autoprefixer';
+import tailwindcss from "tailwindcss";
+import autoprefixer from "autoprefixer";
 
 // https://vitejs.dev/config/
 export default defineConfig(async () => ({
   plugins: [solid()],
-    css: {
-      postcss: {
-        plugins: [tailwindcss, autoprefixer ]
-      }
+  css: {
+    postcss: {
+      plugins: [tailwindcss, autoprefixer],
     },
+  },
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //
   // 1. prevent vite from obscuring rust errors

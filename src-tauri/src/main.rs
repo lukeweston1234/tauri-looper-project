@@ -13,6 +13,10 @@ pub struct App {
     audio_clips: Mutex<Vec<Arc<AudioClip>>>
 }
 
+pub struct RecordResponse {
+    downsampled_audio: Vec<f32> // This is used for rendering a low res vector on the front end
+}
+
 impl App {
     pub fn play_clips(&self) -> Result<()> {
         let audio_clips = self.audio_clips.lock().unwrap();
@@ -60,11 +64,12 @@ fn play_clips(state: tauri::State<'_, Arc<Mutex<App>>>) -> Result<(), String>{
 }
 
 #[tauri::command]
-fn record_clip(state: tauri::State<'_, Arc<Mutex<App>>>) -> Result<(), String>{
+fn record_clip(state: tauri::State<'_, Arc<Mutex<App>>>) -> Result<Vec<f32>, String>{
     let clip = AudioClip::record().map_err(|err| err.to_string())?;
     let app = state.lock().map_err(|err| err.to_string())?;
+    let downsampled = clip.downsample(256);
     app.add_clip(Arc::new(clip));
-    Ok(())
+    Ok(downsampled)
 }
 
 fn main() {

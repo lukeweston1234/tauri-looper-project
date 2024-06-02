@@ -40,6 +40,23 @@ impl AudioClip {
             sample_rate,
         }
     }
+
+    pub fn downsample(&self, target_len: usize) -> Vec<f32> {
+        let sample_count = self.samples.len();
+        if sample_count <= target_len {
+            return self.samples.clone();
+        }
+
+        let chunk_size = sample_count / target_len;
+        let mut downsampled = Vec::with_capacity(target_len);
+
+        for chunk in self.samples.chunks(chunk_size){
+            let avg = chunk.iter().copied().sum::<f32>() / chunk.len() as f32;
+            downsampled.push(avg);
+        }
+
+        downsampled
+    }
     
     pub fn record() -> Result<AudioClip> {
         // TODO: in the future, we could configure input devices

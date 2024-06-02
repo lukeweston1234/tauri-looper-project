@@ -8,7 +8,9 @@
     "dev": "vite",
     "build": "vite build",
     "serve": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "lint": "eslint 'src/**/*.{ts,tsx}' --ext .ts,.tsx",
+    "lint:fix": "eslint 'src/**/*.{ts,tsx}' --ext .ts,.tsx --fix"
   },
   "license": "MIT",
   "dependencies": {
