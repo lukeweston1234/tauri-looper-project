@@ -32,6 +32,10 @@ impl App {
         Ok(())
     }
 
+    pub fn stream_feedback(&self) -> Result<()> {
+        AudioClip::stream_feedback()
+    }
+
     pub fn add_clip(&self, clip: Arc<AudioClip>){
         let mut audio_clips = self.audio_clips.lock().unwrap();
         audio_clips.push(clip);
@@ -60,7 +64,7 @@ fn play_clips(state: tauri::State<'_, Arc<Mutex<App>>>) -> Result<(), String>{
 
 #[tauri::command]
 fn record_clip(state: tauri::State<'_, Arc<Mutex<App>>>) -> Result<Vec<f32>, String>{
-    let clip = AudioClip::record_with_preview().map_err(|err| err.to_string())?;
+    let clip = AudioClip::record().map_err(|err| err.to_string())?;
     let app = state.lock().map_err(|err| err.to_string())?;
     let downsampled = clip.downsample(192);
     app.add_clip(Arc::new(clip));
@@ -68,12 +72,23 @@ fn record_clip(state: tauri::State<'_, Arc<Mutex<App>>>) -> Result<Vec<f32>, Str
 }
 
 fn main() {
+    // Initialize the Tauri application and manage the app state
+    let app_state = Arc::new(Mutex::new(App {
+        bpm: 120,
+        audio_clips: Mutex::new(vec![]),
+    }));
+
+    // Start the feedback stream in a separate thread to avoid blocking the main thread
+    let app_state_clone = Arc::clone(&app_state);
+    std::thread::spawn(move || {
+        if let Err(e) = app_state_clone.lock().unwrap().stream_feedback() {
+            eprintln!("Failed to start feedback stream: {}", e);
+        }
+    });
+
     tauri::Builder::default()
-        .manage(Arc::new(Mutex::new(App {
-            bpm: 120,
-            audio_clips: Mutex::new(vec![]),
-        })))
-        .invoke_handler(tauri::generate_handler![greet, play_clips, record_clip])
+        .manage(app_state)
+        .invoke_handler(tauri::generate_handler![greet, record_clip, play_clips])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

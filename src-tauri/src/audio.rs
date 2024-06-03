@@ -57,8 +57,7 @@ impl AudioClip {
         downsampled
     }
 
-    pub fn record_with_preview() -> Result<AudioClip> {
-        // TODO: in the future, we could configure input devices
+    pub fn stream_feedback() -> Result<()> {
         let host = cpal::default_host();
         let input_device = host
             .default_input_device()
@@ -72,18 +71,6 @@ impl AudioClip {
         let input_config = input_device.default_input_config()?;
         let output_config = output_device.default_output_config()?;
 
-        let clip = AudioClip {
-            id: None,
-            date: Utc::now(),
-            samples: Vec::new(),
-            sample_rate: input_config.sample_rate().0,
-        };
-
-        let clip = Arc::new(Mutex::new(Some(clip)));
-        let clip_two = clip.clone();
-
-        println!("Starting the recording with preview...");
-
         let (sender, receiver) = channel::<Vec<f32>>();
         let err_fn = move |err: cpal::StreamError| {
             eprintln!("An error occurred on stream: {}", err);
@@ -91,37 +78,32 @@ impl AudioClip {
 
         let input_channels = input_config.channels();
 
-        fn write_input_data<T>(input: &[T], channels: u16, writer: &ClipHandle, sender: &Sender<Vec<f32>>)
+        fn write_input_data<T>(input: &[T], channels: u16, sender: &std::sync::mpsc::Sender<Vec<f32>>)
         where
             T: cpal::Sample,
         {
-            if let Ok(mut guard) = writer.try_lock() {
-                if let Some(clip) = guard.as_mut() {
-                    let mut samples = Vec::with_capacity(input.len() / channels as usize);
-                    for frame in input.chunks(channels.into()) {
-                        let sample = frame[0].to_f32();
-                        clip.samples.push(sample);
-                        samples.push(sample);
-                    }
-                    sender.send(samples).unwrap();
-                }
+            let mut samples = Vec::with_capacity(input.len() / channels as usize);
+            for frame in input.chunks(channels.into()) {
+                let sample = frame[0].to_f32();
+                samples.push(sample);
             }
+            sender.send(samples).unwrap();
         }
 
         let input_stream = match input_config.sample_format() {
             cpal::SampleFormat::F32 => input_device.build_input_stream(
                 &input_config.into(),
-                move |data, _: &_| write_input_data::<f32>(data, input_channels, &clip_two, &sender),
+                move |data, _: &_| write_input_data::<f32>(data, input_channels, &sender),
                 err_fn,
             )?,
             cpal::SampleFormat::I16 => input_device.build_input_stream(
                 &input_config.into(),
-                move |data, _: &_| write_input_data::<i16>(data, input_channels, &clip_two, &sender),
+                move |data, _: &_| write_input_data::<i16>(data, input_channels, &sender),
                 err_fn,
             )?,
             cpal::SampleFormat::U16 => input_device.build_input_stream(
                 &input_config.into(),
-                move |data, _: &_| write_input_data::<u16>(data, input_channels, &clip_two, &sender),
+                move |data, _: &_| write_input_data::<u16>(data, input_channels, &sender),
                 err_fn,
             )?,
         };
@@ -166,16 +148,11 @@ impl AudioClip {
         output_stream.play()?;
 
         std::thread::sleep(std::time::Duration::from_secs(10));
-        
-        drop(input_stream);
-        drop(output_stream);
 
-        let clip = clip.lock().unwrap().take().unwrap();
-
-        eprintln!("Recorded {} samples", clip.samples.len());
-
-        Ok(clip)
+        Ok(())
     }
+
+        
     
     pub fn record() -> Result<AudioClip> {
         // TODO: in the future, we could configure input devices
