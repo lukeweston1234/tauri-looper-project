@@ -5,24 +5,36 @@ import AudioClips from "./features/audio-clips/AudioClips";
 
 function App() {
   const [isRecording, setIsRecording] = createSignal<boolean>(false);
+  const [isPlaying, setIsPlaying] = createSignal<boolean>(false);
+  const [isMetronomeOn, setIsMetronomeOn] = createSignal<boolean>(false);
+
   const [clips, setClips] = createSignal<number[][]>([]);
 
   async function record() {
     if (isRecording()) return;
     setIsRecording(true);
     const res = (await invoke("record_clip")) as number[];
-    console.log(res);
     setClips((prevState) => [...prevState, res]);
     setIsRecording(false);
   }
 
   async function playClips() {
+    if (isPlaying()) return;
+    setIsPlaying(true);
     await invoke("play_clips");
+    setIsPlaying(false);
   }
 
   return (
     <div class="flex h-full w-full flex-col bg-black">
-      <Header onRecord={record} onPlay={playClips} isRecording={isRecording} />
+      <Header
+        isPlaying={isPlaying}
+        onRecord={record}
+        onPlay={playClips}
+        isRecording={isRecording}
+        isMetronomeOn={isMetronomeOn}
+        onMetronomeToggle={() => setIsMetronomeOn((prev) => !prev)}
+      />
       <div class="flex flex-col items-center justify-center">
         <div class="flex gap-3" />
       </div>

@@ -2,8 +2,11 @@ import { Accessor } from "solid-js";
 
 export default function Header(props: {
   isRecording: Accessor<boolean>;
+  isPlaying: Accessor<boolean>;
+  isMetronomeOn: Accessor<boolean>;
   onRecord: () => void;
   onPlay: () => void;
+  onMetronomeToggle: () => void;
 }) {
   return (
     <div class="relative flex h-[74px] w-full items-center justify-center gap-6 bg-black">
@@ -35,20 +38,35 @@ export default function Header(props: {
 
       <div class="flex gap-3">
         <button onClick={() => props.onPlay()}>
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke-width="2"
-            stroke="currentColor"
-            class="size-6"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z"
-            />
-          </svg>
+          {props.isPlaying() ? (
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+              class="size-6"
+            >
+              <path
+                fill-rule="evenodd"
+                d="M6.75 5.25a.75.75 0 0 1 .75-.75H9a.75.75 0 0 1 .75.75v13.5a.75.75 0 0 1-.75.75H7.5a.75.75 0 0 1-.75-.75V5.25Zm7.5 0A.75.75 0 0 1 15 4.5h1.5a.75.75 0 0 1 .75.75v13.5a.75.75 0 0 1-.75.75H15a.75.75 0 0 1-.75-.75V5.25Z"
+                clip-rule="evenodd"
+              />
+            </svg>
+          ) : (
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke-width="2"
+              stroke="currentColor"
+              class="size-6"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z"
+              />
+            </svg>
+          )}
         </button>
         <button onClick={() => props.onRecord()}>
           <div
@@ -56,20 +74,23 @@ export default function Header(props: {
           />
         </button>
       </div>
-      <div class="absolute right-0 flex items-center gap-1 pr-6">
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 20 22"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <path
-            d="M9.55556 14.6364L18 1M6.33333 4.50333H13L18 21H2L6.33333 4.50333Z"
-            stroke="#C8BCEA"
-            stroke-width="2"
-          />
-        </svg>
+      <div class="absolute right-0 flex flex-nowrap items-center gap-1 pr-6">
+        <button onClick={() => props.onMetronomeToggle()}>
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 20 22"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            class={!props.isMetronomeOn() ? "opacity-60" : ""}
+          >
+            <path
+              d="M9.55556 14.6364L18 1M6.33333 4.50333H13L18 21H2L6.33333 4.50333Z"
+              stroke="#C8BCEA"
+              stroke-width="2"
+            />
+          </svg>
+        </button>
         <span class="text-sm">120</span>
       </div>
     </div>
