@@ -2706,6 +2706,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "adad44e29e4c806119491a7f06f03de4d1af22c3a680dd47f1e6e179439d1f56"
 
 [[package]]
+name = "ringbuf"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "79abed428d1fd2a128201cec72c5f6938e2da607c6f3745f769fabea399d950a"
+dependencies = [
+ "crossbeam-utils",
+]
+
+[[package]]
 name = "rust-looper-tauri"
 version = "0.0.0"
 dependencies = [
@@ -2714,6 +2723,7 @@ dependencies = [
  "cpal",
  "ctrlc",
  "dasp",
+ "ringbuf",
  "serde",
  "serde_json",
  "tauri",

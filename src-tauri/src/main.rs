@@ -33,7 +33,10 @@ impl App {
     }
 
     pub fn stream_feedback(&self) -> Result<()> {
-        AudioClip::stream_feedback()
+        std::thread::spawn(move || {
+            AudioClip::stream_feedback();
+        });
+        Ok(())
     }
 
     pub fn add_clip(&self, clip: Arc<AudioClip>){
@@ -62,7 +65,7 @@ fn play_clips(state: tauri::State<'_, Arc<Mutex<App>>>) -> Result<(), String>{
     app.play_clips().map_err(|err| err.to_string())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn record_clip(state: tauri::State<'_, Arc<Mutex<App>>>) -> Result<Vec<f32>, String>{
     let clip = AudioClip::record().map_err(|err| err.to_string())?;
     let app = state.lock().map_err(|err| err.to_string())?;
@@ -80,10 +83,9 @@ fn main() {
 
     // Start the feedback stream in a separate thread to avoid blocking the main thread
     let app_state_clone = Arc::clone(&app_state);
+
     std::thread::spawn(move || {
-        if let Err(e) = app_state_clone.lock().unwrap().stream_feedback() {
-            eprintln!("Failed to start feedback stream: {}", e);
-        }
+        app_state_clone.lock().unwrap().stream_feedback();
     });
 
     tauri::Builder::default()

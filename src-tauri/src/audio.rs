@@ -5,6 +5,7 @@ use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use dasp::{interpolate::linear::Linear, signal, Signal};
 use std::sync::Arc;
 use std::sync::Mutex;
+use ringbuf::HeapRb;
 
 #[derive(Clone)]
 pub struct AudioClip {
@@ -71,85 +72,72 @@ impl AudioClip {
         let input_config = input_device.default_input_config()?;
         let output_config = output_device.default_output_config()?;
 
-        let (sender, receiver) = channel::<Vec<f32>>();
-        let err_fn = move |err: cpal::StreamError| {
-            eprintln!("An error occurred on stream: {}", err);
-        };
+        let latency = 30.0;
 
-        let input_channels = input_config.channels();
+        // Create a delay in case the input and output devices aren't synced.
+        let latency_frames = (latency / 1_000.0) * input_config.sample_rate().0 as f32;
+        let latency_samples = latency_frames as usize * input_config.channels() as usize;
 
-        fn write_input_data<T>(input: &[T], channels: u16, sender: &std::sync::mpsc::Sender<Vec<f32>>)
-        where
-            T: cpal::Sample,
-        {
-            let mut samples = Vec::with_capacity(input.len() / channels as usize);
-            for frame in input.chunks(channels.into()) {
-                let sample = frame[0].to_f32();
-                samples.push(sample);
-            }
-            sender.send(samples).unwrap();
+        let ring = HeapRb::<f32>::new(latency_samples * 2);
+
+        let (mut producer, mut consumer) = ring.split();
+
+        for _ in 0..latency_samples {
+            // The ring buffer has twice as much space as necessary to add latency here,
+            // so this should never fail
+            producer.push(0.0).unwrap();
         }
 
-        let input_stream = match input_config.sample_format() {
-            cpal::SampleFormat::F32 => input_device.build_input_stream(
-                &input_config.into(),
-                move |data, _: &_| write_input_data::<f32>(data, input_channels, &sender),
-                err_fn,
-            )?,
-            cpal::SampleFormat::I16 => input_device.build_input_stream(
-                &input_config.into(),
-                move |data, _: &_| write_input_data::<i16>(data, input_channels, &sender),
-                err_fn,
-            )?,
-            cpal::SampleFormat::U16 => input_device.build_input_stream(
-                &input_config.into(),
-                move |data, _: &_| write_input_data::<u16>(data, input_channels, &sender),
-                err_fn,
-            )?,
-        };
-
-        let output_channels = output_config.channels();
-        let err_fn = move |err: cpal::StreamError| {
-            eprintln!("An error occurred on stream: {}", err);
-        };
-
-        fn write_output_data<T>(output: &mut [T], channels: u16, receiver: &Receiver<Vec<f32>>)
-        where
-            T: cpal::Sample,
-        {
-            if let Ok(samples) = receiver.try_recv() {
-                for (i, frame) in output.chunks_mut(channels.into()).enumerate() {
-                    for sample in frame.iter_mut() {
-                        *sample = cpal::Sample::from::<f32>(&samples[i % samples.len()]);
-                    }
+        let input_data_fn = move |data: &[f32], _: &cpal::InputCallbackInfo| {
+            let mut output_fell_behind = false;
+            for &sample in data {
+                if producer.push(sample).is_err() {
+                    output_fell_behind = true;
                 }
             }
-        }
-
-        let output_stream = match output_config.sample_format() {
-            cpal::SampleFormat::F32 => output_device.build_output_stream(
-                &output_config.into(),
-                move |data, _: &_| write_output_data::<f32>(data, output_channels, &receiver),
-                err_fn,
-            )?,
-            cpal::SampleFormat::I16 => output_device.build_output_stream(
-                &output_config.into(),
-                move |data, _: &_| write_output_data::<i16>(data, output_channels, &receiver),
-                err_fn,
-            )?,
-            cpal::SampleFormat::U16 => output_device.build_output_stream(
-                &output_config.into(),
-                move |data, _: &_| write_output_data::<u16>(data, output_channels, &receiver),
-                err_fn,
-            )?,
+            if output_fell_behind {
+                eprintln!("output stream fell behind: try increasing latency");
+            }
+        };
+    
+        let output_data_fn = move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
+            let mut input_fell_behind = false;
+            for sample in data {
+                *sample = match consumer.pop() {
+                    Some(s) => s,
+                    None => {
+                        input_fell_behind = true;
+                        0.0
+                    }
+                };
+            }
+            if input_fell_behind {
+                eprintln!("input stream fell behind: try increasing latency");
+            }
         };
 
+        let err_fn = move |err| {
+            eprintln!("an error occurred on stream: {}", err);
+        };
+    
+        let input_stream = input_device.build_input_stream(&input_config.into(), input_data_fn, err_fn)?;
+        let output_stream = output_device.build_output_stream(&output_config.into(), output_data_fn, err_fn)?;
+
+        println!("Successfully built streams.");
+    
+        // Play the streams.
+        println!(
+            "Starting the input and output streams with `{}` milliseconds of latency.",
+            latency
+        );
+        
         input_stream.play()?;
         output_stream.play()?;
+    
+        // Run for 3 seconds before closing.
+        println!("Playing for 3 seconds... ");
 
-        std::thread::sleep(std::time::Duration::from_secs(10));
-
-        Ok(())
+        loop {}
     }
 
         
