@@ -6,6 +6,7 @@ use dasp::{interpolate::linear::Linear, signal, Signal};
 use std::sync::Arc;
 use std::sync::Mutex;
 use ringbuf::HeapRb;
+use hound;
 
 #[derive(Clone)]
 pub struct AudioClip {
@@ -56,6 +57,23 @@ impl AudioClip {
         }
 
         downsampled
+    }
+
+    pub fn load_wav(file_path: &str) -> Result<AudioClip> {
+        let reader = hound::WavReader::open(file_path)?;
+        let spec = reader.spec();
+        let samples: Vec<f32> = reader
+            .into_samples::<i16>()
+            .filter_map(Result::ok)
+            .map(|s| s as f32 / i16::MAX as f32)
+            .collect();
+
+        Ok(AudioClip {
+            id: None,
+            date: chrono::Utc::now(),
+            samples,
+            sample_rate: spec.sample_rate,
+        })
     }
 
     pub fn stream_feedback() -> Result<()> {

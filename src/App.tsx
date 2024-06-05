@@ -25,6 +25,15 @@ function App() {
     setIsPlaying(false);
   }
 
+  async function onMetronomeToggle() {
+    setIsMetronomeOn((prev) => !prev);
+    if (!isMetronomeOn()) {
+      await invoke("stop_metronome");
+      return;
+    }
+    await invoke("start_metronome");
+  }
+
   return (
     <div class="flex h-full w-full flex-col bg-black">
       <Header
@@ -33,7 +42,7 @@ function App() {
         onPlay={playClips}
         isRecording={isRecording}
         isMetronomeOn={isMetronomeOn}
-        onMetronomeToggle={() => setIsMetronomeOn((prev) => !prev)}
+        onMetronomeToggle={onMetronomeToggle}
       />
       <div class="flex flex-col items-center justify-center">
         <div class="flex gap-3" />
