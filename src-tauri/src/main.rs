@@ -5,8 +5,11 @@ mod audio;
 
 use audio::AudioClip;
 use color_eyre::eyre::Result;
-use std::sync::{Mutex, Arc};
+use std::sync::{Mutex, Arc, mpsc};
+use std::thread;
+use std::time::Duration;
 use std::sync::atomic::{AtomicBool, Ordering::Relaxed};
+use tauri::{AppHandle};
 
 pub struct App {
     bpm: i32,
@@ -51,16 +54,35 @@ impl App {
         let bpm = self.bpm;
         let is_metronome_on = self.is_metronome_on.clone();
         let metronome_clip = self.metronome_clip.clone();
+        let (sender, receiver) = mpsc::channel();
 
-        std::thread::spawn(move || {
-            let interval = std::time::Duration::from_secs_f32(60.0 / bpm as f32);
+        // Timer thread
+        thread::spawn(move || {
+            let interval = Duration::from_secs_f32(60.0 / bpm as f32);
+            println!("{:?}", interval);
             loop {
                 if is_metronome_on.load(Relaxed) {
-                    if let Some(clip) = &metronome_clip {
-                        clip.play().unwrap();
+                    if sender.send(()).is_err() {
+                        break; // Exit the loop if the receiver is dropped
                     }
                 }
-                std::thread::sleep(interval);
+                thread::sleep(interval);
+            }
+        });
+
+        let is_metronome_on_for_playback = self.is_metronome_on.clone();
+
+        // Playback thread
+        thread::spawn(move || {
+            while let Ok(_) = receiver.recv() {
+                if let Some(clip) = &metronome_clip {
+                    if is_metronome_on_for_playback.load(Relaxed) {
+                        let clip_clone = clip.clone();
+                        thread::spawn(move || {
+                            clip_clone.play().unwrap();
+                        });
+                    }
+                }
             }
         });
 
@@ -123,29 +145,39 @@ fn stop_metronome(state: tauri::State<'_, Arc<Mutex<App>>>) -> Result<(), String
     Ok(())
 }
 
-fn main() {
-    println!("{}", std::env::current_dir().unwrap().display());
+fn setup_metronome(handle: &AppHandle, app_state: &Arc<Mutex<App>>) -> Result<(), Box<dyn std::error::Error>> {
+    // Resolve the path to the metronome sound
+    let resource_dir = handle.path_resolver().resource_dir().expect("Failed to resolve resource dir");
+    let metronome_path = resource_dir.join("assets/metronome.wav");
+    let metronome_clip = AudioClip::load_wav(metronome_path.to_str().unwrap()).unwrap();
+    app_state.lock().unwrap().set_metronome_clip(Arc::new(metronome_clip));
 
+    // Start the clock
+    let app_state_clone = Arc::clone(app_state);
+    std::thread::spawn(move || {
+        app_state_clone.lock().unwrap().start_clock().unwrap();
+    });
+
+    Ok(())
+}
+
+fn main() {
     // Initialize the Tauri application and manage the app state
     let app_state = Arc::new(Mutex::new(App {
         bpm: 120,
-        is_metronome_on: Arc::new(AtomicBool::new(false)),
-        metronome_clip: None,
         audio_clips: Mutex::new(vec![]),
+        metronome_clip: None,
+        is_metronome_on: Arc::new(AtomicBool::new(false)),
     }));
 
-    let metronome_clip = resolve_path("assets/metronome.wav", None).expect("Failed to resolve assets path");
-    app_state.lock().unwrap().set_metronome_clip(Arc::new(metronome_clip));
-
-    // Start the feedback stream in a separate thread to avoid blocking the main thread
-    let app_state_clone = Arc::clone(&app_state);
-
-    std::thread::spawn(move || {
-        app_state_clone.lock().unwrap().stream_feedback();
-    });
-
+    // Start the Tauri application
     tauri::Builder::default()
-        .manage(app_state)
+        .manage(app_state.clone())
+        .setup(move |app| {
+            let handle = app.handle();
+            setup_metronome(&handle, &app_state)?;
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![greet, record_clip, play_clips, start_metronome, stop_metronome])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
