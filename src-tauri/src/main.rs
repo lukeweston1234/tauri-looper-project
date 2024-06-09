@@ -170,6 +170,12 @@ fn main() {
         is_metronome_on: Arc::new(AtomicBool::new(false)),
     }));
 
+    let app_state_clone = Arc::clone(&app_state);
+
+    std::thread::spawn(move || {
+        app_state_clone.lock().unwrap().stream_feedback();
+    });
+
     // Start the Tauri application
     tauri::Builder::default()
         .manage(app_state.clone())
