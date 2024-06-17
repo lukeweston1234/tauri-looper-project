@@ -21,7 +21,7 @@ function App() {
   async function playClips() {
     if (isPlaying()) return;
     setIsPlaying(true);
-    await invoke("play_clips");
+    await invoke("play");
     setIsPlaying(false);
   }
 
@@ -34,12 +34,19 @@ function App() {
     await invoke("start_metronome");
   }
 
+  async function onStop() {
+    console.log("Stopping!");
+    setIsPlaying(false);
+    await invoke("stop");
+  }
+
   return (
     <div class="flex h-full w-full flex-col bg-black">
       <Header
         isPlaying={isPlaying}
         onRecord={record}
         onPlay={playClips}
+        onStop={onStop}
         isRecording={isRecording}
         isMetronomeOn={isMetronomeOn}
         onMetronomeToggle={onMetronomeToggle}

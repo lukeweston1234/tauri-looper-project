@@ -11,11 +11,13 @@ use std::time::Duration;
 use std::sync::atomic::{AtomicBool, Ordering::Relaxed};
 use tauri::{AppHandle};
 
+#[derive(Clone)]
 pub struct App {
     bpm: i32,
     is_metronome_on: Arc<AtomicBool>,
-    audio_clips: Mutex<Vec<Arc<AudioClip>>>,
-    metronome_clip: Option<Arc<AudioClip>>, // Add this line
+    is_playing: Arc<AtomicBool>,
+    audio_clips: Arc<Mutex<Vec<Arc<AudioClip>>>>,
+    metronome_clip: Option<Arc<AudioClip>>,
 }
 
 impl App {
@@ -35,6 +37,27 @@ impl App {
             handle.join().unwrap();
         }
 
+        Ok(())
+    }
+
+    pub fn play(&self) -> Result<()> {
+        thread::scope(|s| {
+            self.is_playing.store(true, Relaxed);
+            s.spawn(move || {
+                let is_playing = self.is_playing.clone();
+                while is_playing.load(Relaxed) {
+                    if let Err(e) = self.play_clips() {
+                        eprintln!("Error playing clips: {:?}", e);
+                    }
+                }
+            });
+        });
+        Ok(())
+    }
+
+    pub fn stop(&self) -> Result<()> {
+        println!("In stop!");
+        self.is_playing.store(false, Relaxed);
         Ok(())
     }
 
@@ -116,10 +139,24 @@ fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
 }
 
+
+
 #[tauri::command]
-fn play_clips(state: tauri::State<'_, Arc<Mutex<App>>>) -> Result<(), String>{
-    let app = state.lock().map_err(|err| err.to_string())?;
-    app.play_clips().map_err(|err| err.to_string())
+fn play(state: tauri::State<'_, Arc<Mutex<App>>>) -> Result<(), String>{
+    std::thread::scope(|s| {
+        s.spawn(move || {
+            let app = state.lock().unwrap();
+            app.play();
+        });
+    });
+    Ok(())
+}
+
+#[tauri::command]
+fn stop(state: tauri::State<'_, Arc<Mutex<App>>>) -> Result<(), String>{
+    let app = state.lock().unwrap();
+    app.stop();
+    Ok(())
 }
 
 #[tauri::command(async)]
@@ -165,9 +202,10 @@ fn main() {
     // Initialize the Tauri application and manage the app state
     let app_state = Arc::new(Mutex::new(App {
         bpm: 120,
-        audio_clips: Mutex::new(vec![]),
+        audio_clips: Arc::new(Mutex::new(vec![])),
         metronome_clip: None,
         is_metronome_on: Arc::new(AtomicBool::new(false)),
+        is_playing: Arc::new(AtomicBool::new(false)),
     }));
 
     let app_state_clone = Arc::clone(&app_state);
@@ -184,7 +222,7 @@ fn main() {
             setup_metronome(&handle, &app_state)?;
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![greet, record_clip, play_clips, start_metronome, stop_metronome])
+        .invoke_handler(tauri::generate_handler![greet, record_clip, play, stop, start_metronome, stop_metronome])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
