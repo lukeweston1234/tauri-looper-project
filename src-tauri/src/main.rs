@@ -22,17 +22,20 @@ pub struct App {
 
 impl App {
     pub fn play_clips(&self) -> Result<()> {
-        let audio_clips = self.audio_clips.lock().unwrap();
+        let audio_clips = {
+            let audio_clips = self.audio_clips.lock().unwrap();
+            audio_clips.clone()
+        };
+
         let mut handles = vec![];
         for clip in audio_clips.iter() {
-            let clip = Arc::clone(clip); // Create a clone of the Arc pointer
+            let clip = Arc::clone(clip);
             let handle = std::thread::spawn(move || {
                 clip.play().unwrap();
             });
             handles.push(handle);
         }
 
-        // Wait for all threads to finish
         for handle in handles {
             handle.join().unwrap();
         }
@@ -41,22 +44,11 @@ impl App {
     }
 
     pub fn play(&self) -> Result<()> {
-        thread::scope(|s| {
-            self.is_playing.store(true, Relaxed);
-            s.spawn(move || {
-                let is_playing = self.is_playing.clone();
-                while is_playing.load(Relaxed) {
-                    if let Err(e) = self.play_clips() {
-                        eprintln!("Error playing clips: {:?}", e);
-                    }
-                }
-            });
-        });
+        self.is_playing.store(true, Relaxed);
         Ok(())
     }
 
     pub fn stop(&self) -> Result<()> {
-        println!("In stop!");
         self.is_playing.store(false, Relaxed);
         Ok(())
     }
@@ -139,16 +131,10 @@ fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
 }
 
-
-
 #[tauri::command]
 fn play(state: tauri::State<'_, Arc<Mutex<App>>>) -> Result<(), String>{
-    std::thread::scope(|s| {
-        s.spawn(move || {
-            let app = state.lock().unwrap();
-            app.play();
-        });
-    });
+    let app = state.lock().unwrap();
+    app.play();
     Ok(())
 }
 
@@ -183,13 +169,11 @@ fn stop_metronome(state: tauri::State<'_, Arc<Mutex<App>>>) -> Result<(), String
 }
 
 fn setup_metronome(handle: &AppHandle, app_state: &Arc<Mutex<App>>) -> Result<(), Box<dyn std::error::Error>> {
-    // Resolve the path to the metronome sound
     let resource_dir = handle.path_resolver().resource_dir().expect("Failed to resolve resource dir");
     let metronome_path = resource_dir.join("assets/metronome.wav");
     let metronome_clip = AudioClip::load_wav(metronome_path.to_str().unwrap()).unwrap();
     app_state.lock().unwrap().set_metronome_clip(Arc::new(metronome_clip));
 
-    // Start the clock
     let app_state_clone = Arc::clone(app_state);
     std::thread::spawn(move || {
         app_state_clone.lock().unwrap().start_clock().unwrap();
@@ -199,7 +183,6 @@ fn setup_metronome(handle: &AppHandle, app_state: &Arc<Mutex<App>>) -> Result<()
 }
 
 fn main() {
-    // Initialize the Tauri application and manage the app state
     let app_state = Arc::new(Mutex::new(App {
         bpm: 120,
         audio_clips: Arc::new(Mutex::new(vec![])),
@@ -208,13 +191,24 @@ fn main() {
         is_playing: Arc::new(AtomicBool::new(false)),
     }));
 
-    let app_state_clone = Arc::clone(&app_state);
-
+    let app_state_clone_stream = Arc::clone(&app_state);
     std::thread::spawn(move || {
-        app_state_clone.lock().unwrap().stream_feedback();
+        app_state_clone_stream.lock().unwrap().stream_feedback();
     });
 
-    // Start the Tauri application
+    let app_state_clone_playback = Arc::clone(&app_state);
+
+    thread::spawn(move || {
+        loop {
+            if app_state_clone_playback.lock().unwrap().is_playing.load(Relaxed) {
+                if let Err(e) = app_state_clone_playback.lock().unwrap().play_clips() {
+                    eprintln!("Error playing clips: {:?}", e);
+                }
+            }
+            // thread::sleep(Duration::from_millis(10)); // Add sleep to prevent high CPU usage
+        }
+    });
+
     tauri::Builder::default()
         .manage(app_state.clone())
         .setup(move |app| {
